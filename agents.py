@@ -173,7 +173,7 @@ class DQNNet(torch.nn.Module):
 
     def forward(self, x):
         x = self.net(x)
-        return nn.Softmax(x)
+        return x.tanh()
     
 # class DQNNet(nn.Module):
 #     def __init__(self):
@@ -246,11 +246,13 @@ class DQN:
     # x = self.encode(state)
     # x = np.array([int(s) for s in x]).astype(np.float32)
 
+    if len(state.shape) == 1:
+          state = state.reshape(1, len(state))
     x = torch.from_numpy(state)
     x = x.to(device)
     outputs = self.model(x)
 
-    return outputs[action].item()
+    return outputs[0, action].item()
 
   def move(self,board,turn):
     self.board = board

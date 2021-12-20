@@ -1,4 +1,5 @@
-import numpy as np 
+import numpy as np
+from numpy.core.function_base import logspace 
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -67,7 +68,7 @@ def train_as_X(X_player,O_player,episodes,plot=False):
       # experience replay
       X_player.experience_replay()
       # 保存
-      torch.save(X_player.model.state_dict(), 'model/model_'+str(episode)+'.pth')
+      # torch.save(X_player.model.state_dict(), 'model/model_'+str(episode)+'.pth')
       # log
       print("EPISODE: {:05d}/{:05d} | WIN: {:03d} | LOSS: {:.4f}".format(
               episode, episodes, win, loss / frame))
@@ -92,6 +93,10 @@ def train_as_X(X_player,O_player,episodes,plot=False):
       win.append([el[0],0])
       lose.append([el[0],0])
       draw.append([el[0],1])
+      
+  print(win)
+  print(lose)
+  print(draw)
 
 
   if plot:
