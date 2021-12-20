@@ -40,10 +40,11 @@ from training import train_as_X, train_as_O
 
 if __name__ == "__main__":
 
-  Q = train_as_X(agents.Q_learning(),agents.Random(),7000)
+  # Q = train_as_X(agents.Q_learning(),agents.Random(),7000)
+  Q = train_as_X(agents.DQN(),agents.Random(),7000)
 
-  X_player = agents.Q_learning(Q,0)   # Epsilon = 0 pour avoir un joueur parfait
-  print(X_player.q_table)
+  # X_player = agents.Q_learning(Q,0)   # Epsilon = 0 pour avoir un joueur parfait
+  X_player = agents.DQN(Q,0)   # Epsilon = 0 pour avoir un joueur parfait
   O_player = agents.Random()
 
   results = []

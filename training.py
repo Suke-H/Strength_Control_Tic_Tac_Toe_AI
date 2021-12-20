@@ -1,8 +1,8 @@
 import numpy as np 
 import pandas as pd
 from tqdm import tqdm
-
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+import torch
 
 import agents
 from agents import win_eval
@@ -12,7 +12,12 @@ def train_as_X(X_player,O_player,episodes,plot=False):
   t = tqdm(total=episodes,desc='Training')
 
   results = []
+  win = 0
+  
   for episode in range(episodes):
+    frame = 0
+    loss = 0
+    
     board = np.zeros((3,3),int)   # On crée une matrice 3x3 vide
 
     while win_eval(board) == 0:   # Tant que la partie n'est pas finie   
@@ -26,24 +31,46 @@ def train_as_X(X_player,O_player,episodes,plot=False):
       
       if win_eval(board) != 0:
         reward = agents.score_eval(board,2)
-        prev = X_player.q(S,X_player.format(A))
-        X_player.q_table[(X_player.encode(S),X_player.format(A))] = prev + X_player.alpha * (reward + X_player.gamma*reward - prev)
+        if reward == 2:
+          win += 1
+        # prev = X_player.q(S.flatten(),X_player.format(A))
+        # X_player.q_table[(X_player.encode(S),X_player.format(A))] = prev + X_player.alpha * (reward + X_player.gamma*reward - prev)
         break
-
+      
+      terminal = 0
+      
       ################# O MOVE ######################
       move = O_player.move(board,1)
       board[move[0],move[1]] = 1
-
+      
       S1 = np.copy(board)
 
       X_player.epsilon = 0    # Pour faire le move optimal (imaginaire)
+      
       A1 = X_player.move(board,2)
       X_player.epsilon = 0.2 if episode <0.95*episodes else 0
-
+      
       reward = agents.score_eval(board,2)
-      X_player.learn(S,A,S1,A1,reward)
+      
+      # X_player's store experience
+      terminal = 0
+      S1 = np.copy(board)
+      X_player.store_experience(S.flatten().astype(np.float32), X_player.format(A), reward, S1.flatten().astype(np.float32), terminal)
+
+      # for log
+      frame += 1
+      loss += X_player.current_loss
     
-    results.append([episode,agents.score_eval(board,2)]) 
+    results.append([episode,agents.score_eval(board,2)])
+    
+    if episode % 16 == 0 and episode != 0:
+      # experience replay
+      X_player.experience_replay()
+      # 保存
+      torch.save(X_player.model.state_dict(), 'model/model_'+str(episode)+'.pth')
+      # log
+      print("EPISODE: {:05d}/{:05d} | WIN: {:03d} | LOSS: {:.4f}".format(
+              episode, episodes, win, loss / frame))
 
     t.update(1)
   t.close()

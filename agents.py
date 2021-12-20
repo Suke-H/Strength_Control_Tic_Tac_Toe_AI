@@ -2,6 +2,15 @@ from math import inf
 import numpy as np
 import time
 import random
+from collections import deque
+import numpy as np
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Human:
   ''' input = current state => update GUI, output = mouse click => move + update GUI'''
@@ -32,7 +41,6 @@ class Human:
     self.gui.draw_line(board)
     time.sleep(1)
 
-
 class Random:
   ''' input = board, output = random move'''
 
@@ -58,7 +66,6 @@ def win_eval(board):      # Je réécris la fonction pour éviter une import loo
   if np.count_nonzero(board) < 9: return 0  # Pas fini
   return 3                                  # Match nul
 
-
 def score_eval(board,turn):
   ''' Calcule le score à donner à l'algorithme '''
   antiturn = 0
@@ -74,56 +81,6 @@ def score_eval(board,turn):
   else:
     score = 0
   return score
-
-def minimax_algorithm(board,depth,turn,maximizingPlayer=True):
-  ''' Source : https://fr.wikipedia.org/wiki/Algorithme_minimax
-      Cet algorithme va explorer l'arbre de tous les coups possible '''
-  board = list(board)   # Pour des raisons que j'ignore, ça ne marche pas avec des arrays numpy
-
-  if win_eval(board) != 0:     # Si on se trouve dans un état final
-    return score_eval(board,turn)
-  if maximizingPlayer:
-    best_score = -inf
-    for row in range(3):
-      for col in range(3):
-        if board[row][col] == 0:   # Si la case est vide
-          board[row][col] = 1      # Comme minimac est le maximizingPlayer et qu'il joue O, on essaye pour chaque case vide de mettre un O 
-          score = minimax_algorithm(board,depth-1,turn,False)     # On calcul le score récursivement
-          board[row][col] = 0      # On remet la valeur initiale (ça nous évite de devoir deep copy la liste)
-          best_score = max(best_score,score)        # On garde le score maximal
-    return best_score
-  else:  # On fait exactement la même chose mais avec min(), on suppose que l'adversaire va toujours jouer le meilleur coup possible
-    best_score = +inf
-    for row in range(3):
-      for col in range(3):
-        if board[row][col] == 0:
-          board[row][col] = 2
-          score = minimax_algorithm(board,depth-1,turn,True)
-          board[row][col] = 0
-          best_score = min(best_score,score)
-    return best_score    
-
-def best_move(board,turn):
-  ''' Fonction qui va déterminer le meilleur coup à jouer pour minimax selon la grille '''
-  best_score = -inf
-  for row in range(3):
-    for col in range(3):
-      if board[row,col] == 0:
-        board[row,col] = turn
-
-        score = minimax_algorithm(board,list(np.ravel(board)).count(0),turn,False)   # Pour avoir la depth, on compte le nombre de 0 dans la grille
-        
-        board[row,col] = 0
-        best_score = max(best_score,score)
-        if best_score == score:
-          move = (row,col)
-  return move
-
-class Minimax:
-  ''' input = current state, output = new move ''' 
-  def move(self,board,turn):
-    return best_move(board,turn)
-
 
 class Q_learning:
   ''' input = current state, output = new move '''
@@ -197,3 +154,182 @@ class Q_learning:
     S1 = self.encode(S1)
 
     self.q_table[(S,A)] = prev + self.alpha * (reward + self.gamma*maxnewq - prev)
+    
+class DQNNet(torch.nn.Module):
+    
+    def __init__(self):
+        super(DQNNet, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(9, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 9)
+        )
+
+    def forward(self, x):
+        x = self.net(x)
+        return nn.Softmax(x)
+    
+# class DQNNet(nn.Module):
+#     def __init__(self):
+#         # model is initiated in parent class, set params early.
+#         self.obs_size = 9
+#         self.n_actions = 9
+#         super(DQNNet, self).__init__()
+
+#     def model(self):
+#         # observations -> hidden layer with relu activation -> actions
+#         return nn.Sequential(
+#             nn.Linear(self.obs_size, 64),
+#             nn.ReLU(),
+#             nn.Linear(64, 64),
+#             nn.ReLU(),
+#             nn.Linear(64, 64),
+#             nn.ReLU(),
+#             nn.Linear(64, 64),
+#             nn.ReLU(),
+#             nn.Linear(64, self.n_actions)
+        # )
+    
+class DQN:
+  ''' input = current state, output = new move '''
+  def __init__(self,Q={},epsilon=0.3, alpha=0.2, gamma=0.9):
+    self.q_table = Q
+    self.epsilon = epsilon    # Exploration vs Exploitation
+    self.alpha = alpha          # Learning rate
+    self.gamma = gamma          # Discounting factor
+    
+    self.minibatch_size = 256
+    self.replay_memory_size = 131072
+    self.discount_factor = 0.99
+    self.epsilon = 0.1
+    
+    # replay memory
+    self.D = deque(maxlen=self.replay_memory_size)
+
+    # model
+    self.model = DQNNet().to(device)
+    self.criterion = nn.MSELoss()
+    self.optimizer = optim.RMSprop(self.model.parameters(), lr=10**(-5))
+
+    # for log
+    self.current_loss = 0.0
+
+  def encode(self,state):      # Encode array to string
+    s = ''
+    for row in range(3):
+      for col in range(3):
+        s += str(state[row,col])
+    return s
+
+  def decode(self,s):          # Decode string to array
+    return np.array([[int(s[0]),int(s[1]),int(s[2])],[int(s[3]),int(s[4]),int(s[5])],[int(s[6]),int(s[7]),int(s[8])]])
+
+  def format(self,action):        # Convert any tuple to int
+    if type(action) == int:
+      return action
+    else:
+      return 3*action[0] + action[1]
+
+  def possible_actions(self,board):
+    ''' retourne tous les indices de valeur 0 '''
+    return [i for i in range(9) if self.encode(np.array(board))[i]=='0']
+
+  def q(self,state,action):
+    """ return q(s, a) """
+  
+    # x = self.encode(state)
+    # x = np.array([int(s) for s in x]).astype(np.float32)
+
+    x = torch.from_numpy(state)
+    x = x.to(device)
+    outputs = self.model(x)
+
+    return outputs[action].item()
+
+  def move(self,board,turn):
+    self.board = board
+    actions = self.possible_actions(board)
+    
+    if random.random() < self.epsilon:        # exploration
+      self.last_move = random.choice(actions)
+      self.last_move = (self.last_move//3,self.last_move%3) # on retourne le move sous forme de tuple
+      return self.last_move
+    
+    # else: exploitation
+    x = self.encode(self.board)
+    x = np.array([int(s) for s in x]).astype(np.float32)
+    q_values = [self.q(x, a) for a in actions]
+    
+    if turn == 2:   # Si q_learning joue X
+      max_q = max(q_values)
+    else:           # Si q_learning joue O
+      max_q = min(q_values)
+
+    if q_values.count(max_q) > 1:       # s'il y a plusieurs max_q, choisir aléatoirement
+      best_actions = [i for i in range(len(actions)) if q_values[i] == max_q]
+      i = np.random.permutation(best_actions)[0]
+    else:
+      i = q_values.index(max_q)
+
+    self.last_move = actions[i]
+    self.last_move = (self.last_move//3,self.last_move%3)
+    return self.last_move
+  
+  def train_model(self, x, y, n_epochs):
+    # stateをCNN用に変換
+    # x = self.encode(x)
+    # x = np.array([int(s) for s in x]).astype(np.float32)
+
+    x = torch.from_numpy(x)
+    y = torch.from_numpy(y)
+    x, y = x.to(device), y.to(device)
+    
+    for i in range(n_epochs):
+      self.optimizer.zero_grad()
+      outputs = self.model(x)
+      loss = self.criterion(outputs, y)
+      loss.backward()
+      self.optimizer.step()
+
+    return loss
+  
+  def store_experience(self, state, action, reward, state_1, terminal):
+    # self.D.append((state_transform(state), action, reward, state_transform(state_1), terminal))
+    self.D.append((state, action, reward, state_1, terminal))
+
+  def experience_replay(self):
+    state_minibatch = []
+    y_minibatch = []
+
+    # ミニバッチサイズ(Dがミニバッチサイズ分たまってなかったらDの長さ)
+    minibatch_size = min(len(self.D), self.minibatch_size)
+    # Dからミニバッチをランダムに選んで作成
+    minibatch_indexes = np.random.randint(0, len(self.D), minibatch_size)
+
+    for j in minibatch_indexes:
+      state_j, action_j, reward_j, state_j_1, terminal = self.D[j]
+
+      y_j = np.array([self.q(state_j, a) for a in range(9)])
+      # y_j = self.Q_values(state_j)
+
+      if terminal:
+          y_j[action_j] = reward_j
+      else:
+          # y = reward + gamma * Q(state', max_action')
+          Q_j_1 = [self.q(state_j_1, a) for a in range(9)]
+          y_j[action_j] = reward_j + self.discount_factor * max(Q_j_1)
+
+      state_minibatch.append(state_j)
+      y_minibatch.append(y_j)
+
+    # 学習
+    state_minibatch, y_minibatch = np.array(state_minibatch).astype(np.float32), np.array(y_minibatch).astype(np.float32)
+    # state_minibatch = state_minibatch.reshape(state_minibatch.shape[0], 64)
+
+    self.current_loss = self.train_model(state_minibatch, y_minibatch, 50)
