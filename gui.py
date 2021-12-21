@@ -76,7 +76,6 @@ class gui:
     while True:
       for event in pygame.event.get():
         if event.type == pygame.QUIT:
-          print("un?")
           sys.exit()
         if event.type == pygame.MOUSEBUTTONDOWN:  # Si le boutton de la souris est pressé
             (x,y) = pygame.mouse.get_pos()

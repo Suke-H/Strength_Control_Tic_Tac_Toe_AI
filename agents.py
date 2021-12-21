@@ -179,15 +179,12 @@ class DQNNet(torch.nn.Module):
     
 class DQN:
   ''' input = current state, output = new move '''
-  def __init__(self, model_path=None, epsilon=0.3, alpha=0.2, gamma=0.9):
+  def __init__(self, model_path=None, epsilon=0.1, discount_factor=0.9):
     self.epsilon = epsilon    # Exploration vs Exploitation
-    self.alpha = alpha          # Learning rate
-    self.gamma = gamma          # Discounting factor
+    self.discount_factor = discount_factor   # Discounting factor
     
     self.minibatch_size = 256
     self.replay_memory_size = 131072
-    self.discount_factor = 0.99
-    self.epsilon = 0.1
     
     # replay memory
     self.D = deque(maxlen=self.replay_memory_size)

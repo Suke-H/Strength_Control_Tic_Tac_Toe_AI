@@ -41,7 +41,7 @@ from training import train_as_X, train_as_O
 if __name__ == "__main__":
 
   # Q = train_as_X(agents.Q_learning(),agents.Random(),7000)
-  Q = train_as_X(agents.DQN(),agents.Random(),7000)
+  # Q = train_as_X(agents.DQN(),agents.Random(),7000)
 
   # X_player = agents.Q_learning(Q,0)   # Epsilon = 0 pour avoir un joueur parfait
   X_player = agents.DQN(epsilon=0, model_path="model/model_6999.pth")   # Epsilon = 0 pour avoir un joueur parfait
