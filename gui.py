@@ -1,4 +1,6 @@
 from main import win_eval
+# import os
+# os.environ["SDL_VIDEODRIVER"] = "dummy"
 import pygame,sys
 import time
 

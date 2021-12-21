@@ -8,8 +8,11 @@ import torch
 import agents
 from agents import win_eval
 
-def train_as_X(X_player,O_player,episodes,plot=False):
+def train_as_X(X_player,O_player,episodes,plot=False,no_train=False):
   ''' Similaire à game(), Q_learning est X '''
+  
+  
+  
   t = tqdm(total=episodes,desc='Training')
 
   results = []
@@ -67,7 +70,7 @@ def train_as_X(X_player,O_player,episodes,plot=False):
     if episode % 16 == 0 and episode != 0:
       # experience replay
       X_player.experience_replay()
-      # 保存
+      # # 保存
       # torch.save(X_player.model.state_dict(), 'model/model_'+str(episode)+'.pth')
       # log
       print("EPISODE: {:05d}/{:05d} | WIN: {:03d} | LOSS: {:.4f}".format(
@@ -75,6 +78,9 @@ def train_as_X(X_player,O_player,episodes,plot=False):
 
     t.update(1)
   t.close()
+
+  # 保存
+  torch.save(X_player.model.state_dict(), 'model/model_'+str(episode)+'.pth')
   
   win = []
   lose = []

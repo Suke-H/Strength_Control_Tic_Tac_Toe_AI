@@ -198,8 +198,7 @@ class DQNNet(torch.nn.Module):
     
 class DQN:
   ''' input = current state, output = new move '''
-  def __init__(self,Q={},epsilon=0.3, alpha=0.2, gamma=0.9):
-    self.q_table = Q
+  def __init__(self, model_path=None, epsilon=0.3, alpha=0.2, gamma=0.9):
     self.epsilon = epsilon    # Exploration vs Exploitation
     self.alpha = alpha          # Learning rate
     self.gamma = gamma          # Discounting factor
@@ -214,6 +213,8 @@ class DQN:
 
     # model
     self.model = DQNNet().to(device)
+    if model_path is not None:
+      torch.save(self.model.state_dict(), model_path)
     self.criterion = nn.MSELoss()
     self.optimizer = optim.RMSprop(self.model.parameters(), lr=10**(-5))
 
@@ -334,4 +335,4 @@ class DQN:
     state_minibatch, y_minibatch = np.array(state_minibatch).astype(np.float32), np.array(y_minibatch).astype(np.float32)
     # state_minibatch = state_minibatch.reshape(state_minibatch.shape[0], 64)
 
-    self.current_loss = self.train_model(state_minibatch, y_minibatch, 50)
+    self.current_loss = self.train_model(state_minibatch, y_minibatch, 1000)
