@@ -76,8 +76,10 @@ def score_eval(board,turn):
     
   if win_eval(board) == antiturn:   # Si l'autre gagne
     score = -1
+    # print("lose")
   elif win_eval(board) == turn: # Si minimax gagne
     score = 1
+    # print("win")
   else:
     score = 0
   return score
@@ -174,27 +176,6 @@ class DQNNet(torch.nn.Module):
     def forward(self, x):
         x = self.net(x)
         return x.tanh()
-    
-# class DQNNet(nn.Module):
-#     def __init__(self):
-#         # model is initiated in parent class, set params early.
-#         self.obs_size = 9
-#         self.n_actions = 9
-#         super(DQNNet, self).__init__()
-
-#     def model(self):
-#         # observations -> hidden layer with relu activation -> actions
-#         return nn.Sequential(
-#             nn.Linear(self.obs_size, 64),
-#             nn.ReLU(),
-#             nn.Linear(64, 64),
-#             nn.ReLU(),
-#             nn.Linear(64, 64),
-#             nn.ReLU(),
-#             nn.Linear(64, 64),
-#             nn.ReLU(),
-#             nn.Linear(64, self.n_actions)
-        # )
     
 class DQN:
   ''' input = current state, output = new move '''

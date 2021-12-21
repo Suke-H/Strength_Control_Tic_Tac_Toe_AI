@@ -11,8 +11,6 @@ from agents import win_eval
 def train_as_X(X_player,O_player,episodes,plot=False,no_train=False):
   ''' Similaire à game(), Q_learning est X '''
   
-  
-  
   t = tqdm(total=episodes,desc='Training')
 
   results = []
@@ -26,41 +24,40 @@ def train_as_X(X_player,O_player,episodes,plot=False,no_train=False):
 
     while win_eval(board) == 0:   # Tant que la partie n'est pas finie   
       ################# X MOVE ######################
-      move = X_player.move(board,2)
-
-      S = np.copy(board)     
-      A = move
-
-      board[move[0],move[1]] = 2
+      move = X_player.move(board,2) # move
+      board[move[0],move[1]] = 2 # draw
       
+      # for store experiment 
+      S = np.copy(board).flatten().astype(np.float32) 
+      A = X_player.format(move)
+      S1 = np.copy(board).flatten().astype(np.float32)
+      reward = agents.score_eval(board,2)
+      
+      # terminate condition
       if win_eval(board) != 0:
-        reward = agents.score_eval(board,2)
-        if reward == 2:
+        if reward == 1:
           win += 1
-        # prev = X_player.q(S.flatten(),X_player.format(A))
-        # X_player.q_table[(X_player.encode(S),X_player.format(A))] = prev + X_player.alpha * (reward + X_player.gamma*reward - prev)
+        # X_player's store experience
+        terminal = 1
+        X_player.store_experience(S, A, reward, S1, terminal) # X_player's store experience
         break
       
+      # X_player's store experience
       terminal = 0
+      X_player.store_experience(S, A, reward, S1, terminal)
       
       ################# O MOVE ######################
       move = O_player.move(board,1)
       board[move[0],move[1]] = 1
-      
-      S1 = np.copy(board)
 
-      X_player.epsilon = 0    # Pour faire le move optimal (imaginaire)
+      # X_player.epsilon = 0.2 if episode <0.95*episodes else 0
       
-      A1 = X_player.move(board,2)
-      X_player.epsilon = 0.2 if episode <0.95*episodes else 0
+      # terminate condition
+      if win_eval(board) != 0:
+        if reward == 1:
+          win += 1
+        break
       
-      reward = agents.score_eval(board,2)
-      
-      # X_player's store experience
-      terminal = 0
-      S1 = np.copy(board)
-      X_player.store_experience(S.flatten().astype(np.float32), X_player.format(A), reward, S1.flatten().astype(np.float32), terminal)
-
       # for log
       frame += 1
       loss += X_player.current_loss
